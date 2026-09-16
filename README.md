@@ -1,39 +1,37 @@
-# Books
+# Tree API
 
-Books is a Kotlin + Spring Boot application using PostgreSQL, Flyway, jOOQ, and OpenAPI.
+A Spring Boot and Kotlin service that stores trees as parent–child edges in PostgreSQL and exposes them through a REST API.
+
+## Stack
+
+- Kotlin + Spring Boot + jOOQ
+- PostgreSQL
+- Flyway
 
 ## Requirements
 
 Before starting development, make sure you have the following installed:
 
 * **Java 21** — [Download Java 21](https://adoptium.net/temurin/releases/?version=21)
-* **IntelliJ IDEA** — [Download IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
-* **Docker Desktop** — [Download Docker Desktop](https://www.docker.com/products/docker-desktop/)
+* **Docker Desktop** — [Download Docker Desktop](https://www.docker.com/products/docker-desktop/) (on Linux, Docker Engine with the Compose plugin is enough)
 * **Git** — [Download Git](https://git-scm.com/downloads)
-* **Make** — available by default on macOS/Linux
+* **Make** — available by default on macOS/Linux. On Windows, see [Windows](#windows).
+* **IntelliJ IDEA** (optional) — [Download IntelliJ IDEA](https://www.jetbrains.com/idea/download/)
+
+Make sure Docker is running before you start.
 
 ---
 
 ## Quick start
 
-If everything is already installed:
-
 ### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
-cd books
+cd tree
 ```
 
-### 2. Open the project
-
-Open the `books` directory in IntelliJ IDEA.
-
-IntelliJ should automatically detect the Gradle project.
-
-Make sure the project and Gradle are using **Java 21**.
-
-### 3. Start the development services
+### 2. Start the development services
 
 From the project root:
 
@@ -43,26 +41,48 @@ make app-start-services
 
 This starts the services defined in `docker-compose.yml`, including PostgreSQL.
 
-If a shared development database dump is available, you will be asked whether you want to import it.
+If a shared development database dump (`trees.dump` in the project root) is available, you will be asked whether you want to import it. Answer `y` if you have no local database changes you want to keep.
 
-### 4. Start the application
-
-Start the Spring Boot application from IntelliJ using the **Run ▶** button.
-
-No additional environment variable or database configuration is required for local development.
-
-That's it.
-
----
-
-## Running the application
-
-The recommended way to run the application during development is from IntelliJ.
-
-Alternatively, you can run:
+### 3. Start the application
 
 ```bash
 ./gradlew bootRun
+```
+
+Or open the `tree` directory in IntelliJ IDEA, make sure the project and Gradle use **Java 21**, and start the application with the **Run ▶** button.
+
+On startup, Flyway creates or updates the database schema automatically.
+
+No additional environment variables or database configuration are required for local development.
+
+### 4. Check that it works
+
+Open Swagger UI or OpenAPI docs:
+
+```text
+http://localhost:8081/swagger-ui/index.html
+http://localhost:8080/v3/api-docs
+```
+
+---
+
+## Windows
+
+The `make` commands use shell scripts, so on Windows run them from **WSL** (recommended) or **Git Bash** with `make` installed. They don't work in PowerShell or Command Prompt.
+
+Without `make`, you can run Docker Compose directly. The database import and export prompts are only available through `make`.
+
+| Make command | Docker Compose equivalent |
+|---|---|
+| `make app-start-services` | `docker compose up -d --wait` |
+| `make start-db` | `docker compose up -d --wait postgres` |
+| `make stop-db` | `docker compose stop postgres` |
+| `make app-stop-services` | `docker compose down` |
+
+In PowerShell, use `.\gradlew.bat` instead of `./gradlew`:
+
+```powershell
+.\gradlew.bat bootRun
 ```
 
 ---
@@ -71,47 +91,29 @@ Alternatively, you can run:
 
 PostgreSQL runs locally through Docker Compose.
 
-### Start all services
+| Task | Command |
+|---|---|
+| Start all services | `make app-start-services` |
+| Start only PostgreSQL | `make start-db` |
+| Stop PostgreSQL | `make stop-db` |
+| Stop all services | `make app-stop-services` |
+| Export the database to `trees.dump` | `make export-db` |
+| Import `trees.dump` (replaces local data) | `make import-db` |
+| Delete the local database and restore `trees.dump` | `make reset-db` |
 
-```bash
-make app-start-services
-```
-
-### Start only PostgreSQL
-
-```bash
-make start-db
-```
-
-### Stop PostgreSQL
-
-```bash
-make stop-db
-```
-
-### Stop all services
-
-```bash
-make app-stop-services
-```
-
-When stopping the services, you may be asked whether you want to export the current database.
-
-If you have made development database changes that should be shared with the team, choose `y`.
+When stopping the services, you are asked whether you want to export the current database. If you have made development database changes that should be kept, answer `y`. If the export fails, the services keep running, so nothing is lost.
 
 The database dump is stored at:
 
 ```text
-database/books.dump
+trees.dump
 ```
 
 ---
 
 ## Database migrations
 
-Database schema changes are managed by **Flyway**.
-
-Flyway runs automatically when the application starts.
+Database schema changes are managed by **Flyway**, which runs automatically when the application starts.
 
 Migrations are located at:
 
@@ -122,106 +124,30 @@ src/main/resources/db/migration/
 Example:
 
 ```text
-V1__initial_schema.sql
-V2__add_book_description.sql
-V3__add_book_cover.sql
+V1__create_edge_table.sql
 ```
+
+jOOQ classes are generated from these migration files during the build, so no running database is needed to compile the project.
 
 ### Important
 
-Never modify a migration that has already been applied.
-
-Instead, create a new migration.
-
-For example:
+Never modify a migration that has already been applied. Create a new migration instead, for example:
 
 ```text
-V4__add_book_description.sql
+V2__add_trees_table.sql
 ```
-
-Flyway will apply the migration automatically when the application starts.
 
 **Flyway migrations are the source of truth for the database schema.**
 
 ---
 
-## Development database
-
-A shared PostgreSQL development dump is stored at:
-
-```text
-database/books.dump
-```
-
-### Export
-
-Export the current database:
-
-```bash
-make export-db
-```
-
-If the updated database state should be shared with other developers, commit the updated `books.dump`.
-
-### Import
-
-Import the shared development database:
-
-```bash
-make import-db
-```
-
-**Warning:** importing the dump can replace the existing local database state.
-
-### Reset
-
-Completely reset the local database:
-
-```bash
-make reset-db
-```
-
-This removes the local PostgreSQL Docker volume and restores the shared development dump.
-
-**Warning:** this deletes the current local database.
-
-See [`database/README.md`](database/README.md) for more information about the development database.
-
----
-
-## jOOQ
-
-jOOQ generates Kotlin classes from the PostgreSQL database schema.
-
-Generated classes should **not** be edited manually.
-
-jOOQ code generation runs automatically as part of the Gradle build.
-
-To run it manually:
-
-```bash
-./gradlew jooqCodegen
-```
-
-After changing the database schema, Flyway applies the migration and jOOQ generates the corresponding database classes.
-
----
-
 ## Tests
 
-Run all tests:
+Make sure Docker is running, then run:
 
 ```bash
 ./gradlew test
 ```
-
-Run the complete build:
-
-```bash
-./gradlew build
-```
-
-Before creating a pull request, make sure the complete build passes.
 
 ---
 
@@ -235,9 +161,15 @@ Check your Java version:
 java -version
 ```
 
-The project requires **Java 21**.
+The project requires **Java 21**. Also verify that IntelliJ and Gradle are using Java 21.
 
-Also verify that IntelliJ and Gradle are using Java 21.
+### `./gradlew: Permission denied`
+
+On macOS or Linux, make the Gradle wrapper executable:
+
+```bash
+chmod +x gradlew
+```
 
 ### PostgreSQL is not running
 
@@ -253,29 +185,25 @@ Start PostgreSQL:
 make start-db
 ```
 
-Or start all services:
-
-```bash
-make app-start-services
-```
-
 ### PostgreSQL connection fails
 
-The local application connects automatically to the PostgreSQL database running in Docker.
-
-The local database uses:
+The application connects to the PostgreSQL database running in Docker:
 
 ```text
 Host:     localhost
-Port:     5432
-Database: books
+Port:     5433
+Database: trees
 Username: postgres
 Password: postgres
 ```
 
-No IntelliJ Data Source configuration is required for the application.
+If port `5433` is already in use on your machine, stop the other service, or change the port in `docker-compose.yml` and set `DATABASE_URL`:
 
-### jOOQ classes are missing
+```bash
+DATABASE_URL=jdbc:postgresql://localhost:5434/trees ./gradlew bootRun
+```
+
+### jOOQ classes are missing in IntelliJ
 
 Run:
 
@@ -284,17 +212,3 @@ Run:
 ```
 
 Then reload the Gradle project in IntelliJ.
-
----
-
-## Git
-
-Do not commit:
-
-* IDE-specific configuration
-* Local environment files containing secrets
-* PostgreSQL Docker data
-* Build output
-* Temporary files
-
-The development database dump can be committed when its data is intentionally being shared with the team.

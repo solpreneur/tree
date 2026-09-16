@@ -1,15 +1,20 @@
 services:
   postgres:
     image: postgres:18
-    container_name: books-postgres
     environment:
-      POSTGRES_DB: books
+      POSTGRES_DB: trees
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgresql:/var/lib/postgresql
+      - postgresql_vol:/var/lib/postgresql
+    healthcheck:
+      # -h localhost checks the real server, not the temporary one used while the database is created.
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d trees"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
 volumes:
-  postgresql:
+  postgresql_vol:
